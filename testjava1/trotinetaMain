@@ -1,0 +1,108 @@
+package pachete;
+
+import pachete.Trotineta;
+
+import java.io.*;
+import java.util.*;
+
+public class TrotineteApplication {
+
+    public static void main(String[] args) {
+        // Rezolvarea cerințelor
+        try {
+            // Punctul 1 - citirea și afișarea trotinetelor conform cerinței
+            Map<String, Trotineta> trotinete = citesteTrotinete("trotinete.txt");
+            afiseazaTrotineteMaxim50kmh(trotinete);
+
+            // Punctul 2 - afișarea numărului și sumei distanțelor pentru fiecare viteză medie
+            afiseazaVitezeMedii(trotinete);
+
+            // Punctul 3 - salvarea trotinetelor rapide într-un fișier binar
+            salveazaTrotineteRapide(trotinete, "Rapide.dat");
+
+            // Punctul 4 - citirea și afișarea trotinetelor din fișierul binar
+            try {
+                afiseazaTrotineteRapide("Rapide.dat");
+            } catch (ClassNotFoundException e) {
+
+            }
+        } catch (IOException e) {
+            System.err.println("Eroare la citirea sau scrierea datelor: " + e.getMessage());
+        }
+    }
+
+    // Punctul 1 - citirea trotinetelor din fișier
+    public static Map<String, Trotineta> citesteTrotinete(String fileName) throws IOException {
+        Map<String, Trotineta> trotinete = new HashMap<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] tokens = line.split("\\s+");
+                if (tokens.length == 4) {
+                    String id = tokens[0];
+                    float distanta = Float.parseFloat(tokens[1]);
+                    float vitezaMedie = Float.parseFloat(tokens[2]);
+                    float vitezaMaxima = Float.parseFloat(tokens[3]);
+                    trotinete.put(id, new Trotineta(id, distanta, vitezaMedie, vitezaMaxima));
+                }
+            }
+        }
+        return trotinete;
+    }
+
+    // Punctul 2 - afișarea trotinetelor cu viteză maximă > 50 km/h
+    public static void afiseazaTrotineteMaxim50kmh(Map<String, Trotineta> trotinete) {
+        System.out.println("Trotinete cu viteza maxima peste 50 km/h:");
+        for (Trotineta trotineta : trotinete.values()) {
+            if (trotineta.getVitezaMaxima() > 50) {
+                System.out.println(trotineta);
+            }
+        }
+    }
+
+    // Punctul 3 - afișarea numărului și sumei distanțelor pentru fiecare viteză medie
+    public static void afiseazaVitezeMedii(Map<String, Trotineta> trotinete) {
+        Map<Float, List<Trotineta>> trotineteVitezaMedie = new HashMap<>();
+        for (Trotineta trotineta : trotinete.values()) {
+            float vitezaMedie = trotineta.getVitezaMedie();
+            trotineteVitezaMedie.computeIfAbsent(vitezaMedie, k -> new ArrayList<>()).add(trotineta);
+        }
+
+        trotineteVitezaMedie.forEach((vitezaMedie, listaTrotinete) -> {
+            int numarTrotinete = listaTrotinete.size();
+            float sumaDistante = listaTrotinete.stream().map(Trotineta::getDistantaTotala).reduce(0f, Float::sum);
+            System.out.println("Viteza medie " + vitezaMedie + " km/h -> " + numarTrotinete + " trotinete, suma distantelor parcurse " + sumaDistante + " km");
+        });
+    }
+
+    // Punctul 4 - salvarea trotinetelor rapide într-un fișier binar
+    public static void salveazaTrotineteRapide(Map<String, Trotineta> trotinete, String fileName) throws IOException {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            trotinete.values().stream()
+                    .filter(t -> t.getVitezaMedie() > 14 || t.getVitezaMaxima() > 50)
+                    .forEach(t -> {
+                        try {
+                            oos.writeObject(t);
+                        } catch (IOException e) {
+                            System.err.println("Eroare la scrierea trotinetei " + t.getIdTrotineta() + ": " + e.getMessage());
+                        }
+                    });
+        }
+    }
+
+    // Punctul 5 - citirea și afișarea trotinetelor din fișierul binar
+    public static void afiseazaTrotineteRapide(String fileName) throws IOException, ClassNotFoundException {
+        System.out.println("Trotinete rapide citite din " + fileName + ":");
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(fileName))) {
+            Object obj;
+            while ((obj = ois.readObject()) != null) {
+                if (obj instanceof Trotineta) {
+                    Trotineta trotineta = (Trotineta) obj;
+                    System.out.println(trotineta);
+                }
+            }
+        } catch (EOFException e) {
+            // Sfârșitul fișierului
+        }
+    }
+}
